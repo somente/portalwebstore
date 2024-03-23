@@ -1,6 +1,6 @@
-0001 
-0002 
-0003 
+0001 www.google.com
+0002 Galaxy s23 ultra mercado livre
+0003 ovomaltine
 0004 
 0005 
 0006 
@@ -8,3 +8,6 @@
 0008 
 0009 
 0010 
+000A abacate
+000a abacaxi
+Aaa1 abacaxi OR abacate
