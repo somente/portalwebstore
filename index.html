@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PortalWebStore - Pesquisar</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #5cb85c; /* Cor verde de fundo */
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .search-container {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .search-bar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .search-bar input[type="text"] {
+            padding: 10px;
+            width: 60%;
+            border: 2px solid #f5a623;
+            border-radius: 5px;
+            color: #333;
+        }
+
+        .search-bar select {
+            padding: 10px;
+            border: 2px solid #f5a623;
+            border-radius: 5px;
+            color: #333;
+            margin-left: 10px;
+            width: 40%;
+            appearance: none;
+            background-color: #fff; /* Fundo branco */
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23333" width="24px" height="24px"><path d="M7 10l5 5 5-5H7z"/><path d="M0 0h24v24H0z" fill="none"/></svg>'); /* Flecha para baixo */
+            background-repeat: no-repeat;
+            background-position: right center;
+            background-size: 20px auto;
+        }
+
+        .search-bar button {
+            padding: 10px 20px;
+            border: none;
+            background-color: #f5a623;
+            color: #fff;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+
+        .search-bar button:hover {
+            background-color: #d48900;
+        }
+
+        .search-results {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+            justify-content: center;
+        }
+
+        .search-result {
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            text-align: center;
+        }
+
+        .search-result img {
+            display: block; /* Garante que a imagem fique centralizada */
+            margin: 0 auto; /* Centraliza horizontalmente */
+            max-width: 150px;
+            max-height: 150px;
+            margin-bottom: 10px;
+        }
+
+        .search-result a {
+            text-decoration: none;
+            color: #000080;
+            font-size: 20px;
+            font-weight: bold;
+            transition: color 0.3s;
+        }
+
+        .search-result a:hover {
+            color: #001F40;
+        }
+
+        .search-result-description {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .more-info-button {
+            display: inline-block;
+            padding: 8px 20px;
+            background-color: #f5a623;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: background-color 0.3s;
+            text-decoration: none;
+        }
+
+        .more-info-button:hover {
+            background-color: #d48900;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="search-container">
+            <div class="search-bar">
+                <input type="text" id="searchInput" placeholder="Pesquisar produtos...">
+                <select name="site" id="siteSelector">
+                    <option value="all" selected>Todos</option>
+                    <option value="site:https://amazon.com.br">Amazon</option>
+                    <option value="site:https://magazineluiza.com.br">MagaLu</option>
+                    <option value="site:https://shopee.com.br">Shopee</option>
+                    <option value="site:https://mercadolivre.com.br">Mercado Livre</option>
+                    <!-- Adicione outras opções de sites aqui -->
+                </select>
+                <button id="searchButton">Pesquisar</button>
+            </div>
+            <div id="searchResults" class="search-results"></div>
+        </div>
+    </div>
+    <script>
+        // Mapeamento dos sites para suas regras de afiliado
+        var affiliateRules = {
+            'shopee.com.br': function(link) {
+                return link + '?utm_campaign=-&utm_content=----&utm_medium=affiliates&utm_source=an_18348170177&utm_term=';
+            },
+            'amazon.com.br': function(link) {
+                return link + '?th=1&linkCode=ll1&tag=portalwebstores-20&linkId=';
+            },
+            'magazineluiza.com.br': function(link) {
+                return link.replace(/https:\/\/(m\.|www\.)magazineluiza\.com\.br\//, 'https://www.magazinevoce.com.br/magazineportalwebstore/');
+            },
+            'mercadolivre.com.br': function(link) {
+                return link + '?tag=seu_codigo_de_afiliado';
+            }
+            // Adicione mais sites e suas respectivas regras de afiliado conforme necessário
+        };
+
+        // Função para realizar a pesquisa
+        function performSearch() {
+            var searchTerm = document.getElementById('searchInput').value.trim();
+            if (!searchTerm) return; // Ignorar pesquisa vazia
+
+            // Desativar botão durante o carregamento
+            var searchButton = document.getElementById('searchButton');
+            searchButton.disabled = true;
+
+            searchInStockAndAPI(searchTerm);
+        }
+
+        // Evento de clique no botão
+        document.getElementById('searchButton').addEventListener('click', performSearch);
+
+        // Evento de pressionar Enter no campo de entrada
+        document.getElementById('searchInput').addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                performSearch();
+            }
+        });
+
+        // Função para buscar no estoque local e na API do Google
+        function searchInStockAndAPI(searchTerm) {
+            var url = 'https://raw.githubusercontent.com/somente/portalwebstore/main/estoque.txt';
+            fetch(url)
+                .then(response => response.text())
+                .then(data => {
+                    var lines = data.split('\n');
+                    var found = false;
+                    for (var i = 0; i < lines.length; i++) {
+                        var parts = lines[i].split(' ');
+                        if (parts[0] === searchTerm) {
+                            found = true;
+                            var link = parts.slice(1).join(' '); // Juntar todos os elementos após o primeiro para obter o link completo
+                            // Verificar se o link começa com 'http://', 'https://' ou 'www.'
+                            if (link.startsWith('http://') || link.startsWith('https://')) {
+                                window.open(link, '_blank'); // Abrir o link direto em uma nova aba
+                            } else if (link.startsWith('www.')) {
+                                // Adicionar 'http://' antes de links que começam com 'www.'
+                                link = 'http://' + link;
+                                window.open(link, '_blank'); // Abrir o link direto em uma nova aba
+                            } else {
+                                searchInGoogleAPI(link); // Usar o link como termo de pesquisa para a API do Google
+                            }
+                            break;
+                        }
+                    }
+                    if (!found) {
+                        searchInGoogleAPI(searchTerm); // Se o item não for encontrado, usar o termo de pesquisa para a API do Google
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching data from text file:', error); // Log any errors
+                    searchInGoogleAPI(searchTerm);
+                });
+        }
+
+        // Função para buscar na API do Google
+        function searchInGoogleAPI(searchTerm) {
+            var apiKey = 'AIzaSyB-F9Ta8kbpGoLIQw5RnaDAUusDpZlzsqA'; // Substitua com sua chave da API do Google Custom Search
+            var cx = 'f20600b4619f244c6'; // Substitua com o ID do seu Custom Search Engine
+            var siteSelector = document.getElementById('siteSelector');
+            var selectedSite = siteSelector.value;
+
+            var apiUrl = 'https://www.googleapis.com/customsearch/v1?key=' + apiKey + '&cx=' + cx;
+
+            // Adicionar operador 'site:' se um site específico for selecionado
+            if (selectedSite !== 'all') {
+                apiUrl += '&q=' + encodeURIComponent(selectedSite + ' ' + searchTerm); // Encode o termo de pesquisa
+            } else {
+                // Se "Todos" for selecionado, buscar em todos os sites
+                var siteOptions = siteSelector.querySelectorAll('option[value^="site:"]');
+                var siteQueries = [];
+                siteOptions.forEach(function(option) {
+                    siteQueries.push(option.value);
+                });
+                var allSitesQuery = siteQueries.join(' OR ');
+                apiUrl += '&q=' + encodeURIComponent('(' + allSitesQuery + ') ' + searchTerm); // Encode o termo de pesquisa
+            }
+
+            fetch(apiUrl)
+                .then(response => response.json())
+                .then(data => {
+                    hndlr(data);
+                })
+                .catch(error => {
+                    console.error('Erro ao buscar na API do Google:', error);
+                    // Reativar o botão de pesquisa em caso de erro
+                    var searchButton = document.getElementById('searchButton');
+                    searchButton.disabled = false;
+                });
+        }
+
+        // Função de manipulação do retorno da pesquisa
+        function hndlr(response) {
+            var searchResultsContainer = document.getElementById('searchResults');
+            searchResultsContainer.innerHTML = ''; // Limpar resultados anteriores
+
+            // Verificar se há resultados
+            if (response.items && response.items.length > 0) {
+                response.items.forEach(function(item) {
+                    var resultDiv = document.createElement('div');
+                    resultDiv.classList.add('search-result');
+
+                    // Adicionar imagem do resultado (se disponível)
+                    if (item.pagemap && item.pagemap.cse_thumbnail && item.pagemap.cse_thumbnail.length > 0) {
+                        var image = document.createElement('img');
+                        image.src = item.pagemap.cse_thumbnail[0].src;
+                        image.alt = item.title;
+                        resultDiv.appendChild(image);
+                    }
+
+                    // Adicionar link e título do resultado
+                    var titleLink = document.createElement('a');
+                    titleLink.textContent = item.title;
+                    titleLink.classList.add('search-result-link');
+                    titleLink.target = '_blank'; // Abrir em uma nova aba
+
+                    // Adicionando links de afiliado conforme a regra definida
+                    if (item.link.includes('shopee.com.br')) {
+                        titleLink.href = affiliateRules['shopee.com.br'](item.link);
+                    } else if (item.link.includes('amazon.com.br')) {
+                        titleLink.href = affiliateRules['amazon.com.br'](item.link);
+                    } else if (item.link.includes('magazineluiza.com.br')) {
+                        titleLink.href = affiliateRules['magazineluiza.com.br'](item.link);
+                    } else if (item.link.includes('mercadolivre.com.br')) {
+                        titleLink.href = affiliateRules['mercadolivre.com.br'](item.link);
+                    } else {
+                        titleLink.href = item.link;
+                    }
+
+                    resultDiv.appendChild(titleLink);
+
+                    // Adicionar snippet do resultado
+                    if (item.snippet) {
+                        var snippetParagraph = document.createElement('p');
+                        snippetParagraph.textContent = item.snippet;
+                        snippetParagraph.classList.add('search-result-description');
+                        resultDiv.appendChild(snippetParagraph);
+                    }
+
+                    // Adicionar botão "Saiba mais"
+                    var moreInfoButton = document.createElement('a');
+                    moreInfoButton.textContent = 'Saiba mais';
+                    moreInfoButton.classList.add('more-info-button');
+                    moreInfoButton.href = titleLink.href; // O botão também leva ao link afiliado
+                    moreInfoButton.target = '_blank'; // Abrir em uma nova aba
+                    resultDiv.appendChild(moreInfoButton);
+
+                    searchResultsContainer.appendChild(resultDiv);
+                });
+            } else {
+                searchResultsContainer.innerHTML = 'Nenhum resultado encontrado.';
+            }
+
+            // Reativar o botão de pesquisa
+            var searchButton = document.getElementById('searchButton');
+            searchButton.disabled = false;
+        }
+    </script>
+</body>
+</html>
